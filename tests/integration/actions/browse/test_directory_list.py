@@ -167,6 +167,7 @@ def test_directory_list_on_mount_with_root_directory_loads_archive_paths():
         config=flexmock(), repository=flexmock(), archive_name='archive'
     )
     flexmock(directory_list.path_loaded).should_receive('subscribe')
+    flexmock(directory_list.restore_result).should_receive('subscribe')
 
     directory_list.on_mount()
 
@@ -186,6 +187,7 @@ def test_directory_list_on_mount_with_non_root_directory_adds_archive_paths():
         path_components=('etc',),
     )
     flexmock(directory_list.path_loaded).should_receive('subscribe')
+    flexmock(directory_list.restore_result).should_receive('subscribe')
 
     directory_list.on_mount()
 
@@ -285,3 +287,50 @@ def test_directory_list_on_option_list_option_highlighted_with_highlighted_non_z
     directory_list.on_option_list_option_highlighted(event=flexmock())
 
     assert directory_list.highlighted_option_changed is True
+
+
+def test_directory_list_action_toggle_selection_toggles_check_mark():
+    flexmock(module.borgmatic.actions.browse.loading).should_receive('add_inline_loading_indicator')
+    directory_list = module.Directory_list(
+        config=flexmock(),
+        repository=flexmock(),
+        archive_name='archive',
+        path_loaded=flexmock(complete=True, path_hierarchy={}),
+        path_components=(),
+    )
+    directory_list.add_option(textual.widgets.option_list.Option('📄 file.txt', id='file.txt'))
+    directory_list.highlighted = 0
+
+    directory_list.action_toggle_selection()
+    assert 'file.txt' in directory_list.selected_item_ids
+    assert '[green]✓[/green]' in directory_list.options[0].prompt
+
+    directory_list.action_toggle_selection()
+    assert 'file.txt' not in directory_list.selected_item_ids
+    assert '[green]✓[/green]' not in directory_list.options[0].prompt
+
+
+def test_directory_list_on_restore_result_notifies_and_clears_selection():
+    flexmock(module.borgmatic.actions.browse.loading).should_receive('add_inline_loading_indicator')
+    app = flexmock()
+    app.should_receive('notify').with_args(
+        '🎉 Successfully restored', severity='information', timeout=6
+    ).once()
+    app.is_restoring = True
+
+    directory_list = module.Directory_list(
+        config=flexmock(),
+        repository=flexmock(),
+        archive_name='archive',
+        path_loaded=flexmock(complete=True, path_hierarchy={}),
+        path_components=(),
+    )
+    flexmock(directory_list).should_receive('app').and_return(app)
+    directory_list.add_option(textual.widgets.option_list.Option('[green]✓[/green] 📄 file.txt', id='file.txt'))
+    directory_list.selected_item_ids.add('file.txt')
+
+    directory_list.on_restore_result((True, 'Successfully restored'))
+    assert app.is_restoring is False
+    assert len(directory_list.selected_item_ids) == 0
+    assert '[green]✓[/green]' not in directory_list.options[0].prompt
+

@@ -124,3 +124,42 @@ def test_load_file_preview_publishes_file_contents():
         archive_name='archive',
         file_path='foo/bar/baz.txt',
     )
+
+
+def test_restore_paths_worker_publishes_success():
+    flexmock(module.borgmatic.actions.browse.archive).should_receive('restore_archive_paths').once()
+    restore_result = flexmock()
+    restore_result.should_receive('publish').with_args(
+        (True, 'Successfully restored 1 item(s) to /restore')
+    ).once()
+
+    module.restore_paths.__wrapped__(
+        browse_app=flexmock(),
+        restore_result=restore_result,
+        config=flexmock(),
+        repository=flexmock(),
+        archive_name='archive',
+        paths=('etc/file.txt',),
+        destination_path='/restore',
+    )
+
+
+def test_restore_paths_worker_publishes_failure_on_error():
+    flexmock(module.borgmatic.actions.browse.archive).should_receive(
+        'restore_archive_paths'
+    ).and_raise(RuntimeError('disk error'))
+    restore_result = flexmock()
+    restore_result.should_receive('publish').with_args(
+        (False, 'Restore failed: disk error')
+    ).once()
+
+    module.restore_paths.__wrapped__(
+        browse_app=flexmock(),
+        restore_result=restore_result,
+        config=flexmock(),
+        repository=flexmock(),
+        archive_name='archive',
+        paths=('etc/file.txt',),
+        destination_path='/restore',
+    )
+

@@ -142,3 +142,31 @@ def test_get_archive_file_content_with_unicode_decode_error_does_not_raise():
         module.get_archive_file_content(config, config['repositories'][0], 'archive', 'etc/foo.txt')
         is None
     )
+
+
+def test_restore_archive_paths_calls_extract_archive():
+    config = {'repositories': [{'path': 'test.borg'}]}
+    flexmock(module.borgmatic.logger).should_receive('Log_prefix').and_return(flexmock())
+    flexmock(module.borgmatic.borg.version).should_receive('local_borg_version').and_return('3.0')
+    flexmock(module.borgmatic.borg.extract).should_receive('extract_archive').with_args(
+        dry_run=False,
+        repository='test.borg',
+        archive='archive',
+        paths=('etc/foo.txt',),
+        config=config,
+        local_borg_version='3.0',
+        global_arguments=module.argparse.Namespace(),
+        local_path='borg',
+        remote_path=None,
+        destination_path='/restore',
+        strip_components=None,
+        extract_to_stdout=False,
+    ).once()
+
+    module.restore_archive_paths(
+        config=config,
+        repository=config['repositories'][0],
+        archive_name='archive',
+        paths=('etc/foo.txt',),
+        destination_path='/restore',
+    )

@@ -209,3 +209,40 @@ def load_file_preview(
     )
 
     file_preview_loaded.publish(file_contents)
+
+
+class Restore_result(textual.signal.Signal):
+    '''
+    A signal that publishes when a restore job has finished, reporting (success: bool, message: str).
+    '''
+
+
+@textual.work(thread=True)
+def restore_paths(
+    browse_app,
+    restore_result,
+    config,
+    repository,
+    archive_name,
+    paths,
+    destination_path=None,
+    strip_components=None,
+):
+    '''
+    Given a Browse_app instance, a Restore_result signal, repository details, paths, and an
+    optional destination directory, perform archive extraction in the background and publish the
+    result.
+    '''
+    try:
+        borgmatic.actions.browse.archive.restore_archive_paths(
+            config=config,
+            repository=repository,
+            archive_name=archive_name,
+            paths=paths,
+            destination_path=destination_path,
+            strip_components=strip_components,
+        )
+        dest = destination_path or 'original location'
+        restore_result.publish((True, f'Successfully restored {len(paths)} item(s) to {dest}'))
+    except (OSError, RuntimeError, ValueError) as error:
+        restore_result.publish((False, f'Restore failed: {error}'))

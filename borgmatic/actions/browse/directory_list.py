@@ -1,3 +1,4 @@
+import contextlib
 import os
 
 import textual.widgets
@@ -5,6 +6,7 @@ import textual.widgets
 import borgmatic.actions.browse.bindings
 import borgmatic.actions.browse.icons
 import borgmatic.actions.browse.loading
+import borgmatic.actions.browse.restore_modal
 import borgmatic.actions.browse.workers
 
 
@@ -35,14 +37,15 @@ def get_relative_archive_path_components(archive_path, current_directory_path_co
     return archive_path_components[len(current_directory_path_components) :]
 
 
-def make_directory_list_option(archive_path, relative_path_components):
+def make_directory_list_option(archive_path, relative_path_components, selected=False):
     '''
-    Given an Archive_path instance and a tuple of relative path components for it, make a
-    textual.widgets.option_list.Option for the path. Use an the icon based on whether this looks
-    like a terminal filename or a directory.
+    Given an Archive_path instance, a tuple of relative path components for it, and an optional
+    selected boolean flag, make a textual.widgets.option_list.Option for the path. Use the icon
+    based on whether this looks like a terminal filename or a directory.
     '''
+    prefix = '[green]✓[/green] ' if selected else ''
     pieces = (
-        borgmatic.actions.browse.icons.PATH_TYPE_ICONS.get(
+        prefix + borgmatic.actions.browse.icons.PATH_TYPE_ICONS.get(
             archive_path.path_type if len(relative_path_components) == 1 else 'd', '❓'
         ),
         relative_path_components[0],
@@ -74,7 +77,14 @@ def add_archive_paths(
         (
             *directory_list.options,
             *(
-                make_directory_list_option(archive_path, relative_path_components)
+                make_directory_list_option(
+                    archive_path,
+                    relative_path_components,
+                    selected=(
+                        relative_path_components[0]
+                        in getattr(directory_list, 'selected_item_ids', ())
+                    ),
+                )
                 for archive_path in archive_paths
                 for relative_path_components in (
                     get_relative_archive_path_components(
@@ -110,7 +120,7 @@ class Directory_list(textual.widgets.OptionList):
     Directory_list.
     '''
 
-    BINDINGS = borgmatic.actions.browse.bindings.OPTION_LIST_BINDINGS
+    BINDINGS = borgmatic.actions.browse.bindings.DIRECTORY_LIST_BINDINGS
 
     def __init__(self, config, repository, archive_name, path_loaded=None, path_components=None):
         '''
@@ -125,6 +135,9 @@ class Directory_list(textual.widgets.OptionList):
         self.archive_name = archive_name
         self.path_components = path_components or ()
         self.highlighted_option_changed = False
+        self.selected_item_ids = set()
+        self.restore_anim_timer = None
+        self.restore_anim_frame = 0
 
         super().__init__(classes='panel')
 
@@ -148,6 +161,9 @@ class Directory_list(textual.widgets.OptionList):
         self.path_loaded = path_loaded or borgmatic.actions.browse.workers.Archive_path_loaded(
             self, 'archive path loaded'
         )
+        self.restore_result = borgmatic.actions.browse.workers.Restore_result(
+            self, 'restore result'
+        )
 
         if not self.path_loaded.complete:
             self.timer = borgmatic.actions.browse.loading.add_inline_loading_indicator(self)
@@ -163,6 +179,7 @@ class Directory_list(textual.widgets.OptionList):
         where we might miss out on any paths.
         '''
         self.path_loaded.subscribe(self, self.on_archive_path_loaded)
+        self.restore_result.subscribe(self, self.on_restore_result)
 
         if self.path_components:
             add_archive_paths(
@@ -209,3 +226,123 @@ class Directory_list(textual.widgets.OptionList):
         '''
         if self.highlighted not in {None, 0}:
             self.highlighted_option_changed = True
+
+    def action_toggle_selection(self):
+        '''
+        Toggle multi-selection on the currently highlighted option (except '..' or loading indicator).
+        '''
+        option = self.highlighted_option
+        if not option or option.id in {'..', 'loading-indicator'}:
+            return
+
+        item_id = option.id
+        if item_id in self.selected_item_ids:
+            self.selected_item_ids.remove(item_id)
+            # Remove [green]✓[/green] prefix
+            clean_prompt = str(option.prompt).replace('[green]✓[/green] ', '')
+            self.replace_option_prompt(item_id, clean_prompt)
+        else:
+            self.selected_item_ids.add(item_id)
+            # Prepend [green]✓[/green] prefix
+            new_prompt = f'[green]✓[/green] {option.prompt}'
+            self.replace_option_prompt(item_id, new_prompt)
+
+    def action_restore(self):
+        '''
+        Trigger restore for selected items or the currently highlighted item.
+        '''
+        if getattr(self.app, 'is_restoring', False):
+            self.app.notify(
+                'A restore is already in progress. Please wait...',
+                severity='warning',
+                timeout=4,
+            )
+            return
+
+        items_to_restore = list(self.selected_item_ids)
+        if not items_to_restore:
+            highlighted = self.highlighted_option
+            if not highlighted or highlighted.id in {'..', 'loading-indicator'}:
+                self.app.notify('Please select an item to restore.', severity='warning')
+                return
+            items_to_restore = [highlighted.id]
+
+        full_archive_paths = [
+            os.path.sep.join((*self.path_components, item_id))
+            for item_id in items_to_restore
+        ]
+
+        # Determine default destination from first source directory in config
+        source_dirs = self.config.get('source_directories', [])
+        default_dest = source_dirs[0] if source_dirs else '/source/opt'
+
+        def on_modal_dismiss(destination_path):
+            if destination_path is None:
+                return
+
+            self.app.is_restoring = True
+            count = len(full_archive_paths)
+
+            # Start animation in border title
+            base_title = self.border_title
+            self.restore_anim_frame = 0
+
+            def update_anim():
+                self.restore_anim_frame = (self.restore_anim_frame + 1) % 4
+                dots = '.' * (self.restore_anim_frame + 1)
+                self.border_title = f'{base_title} [yellow](⏳ restoring {count} item(s){dots})[/yellow]'
+
+            self.restore_anim_timer = self.set_interval(
+                borgmatic.actions.browse.loading.LOADING_DOT_INTERVAL_SECONDS,
+                update_anim,
+            )
+
+            borgmatic.actions.browse.workers.restore_paths(
+                self.app,
+                restore_result=self.restore_result,
+                config=self.config,
+                repository=self.repository,
+                archive_name=self.archive_name,
+                paths=full_archive_paths,
+                destination_path=destination_path,
+            )
+
+        self.app.push_screen(
+            borgmatic.actions.browse.restore_modal.Restore_modal(
+                full_archive_paths, default_destination=default_dest
+            ),
+            on_modal_dismiss,
+        )
+
+    def on_restore_result(self, result_data):
+        '''
+        Handle completion of background restore operation.
+        '''
+        success, message = result_data
+        self.app.is_restoring = False
+
+        if self.restore_anim_timer:
+            self.restore_anim_timer.stop()
+            self.restore_anim_timer = None
+
+        # Reset border title
+        self.border_title = ' '.join(
+            (
+                '📁',
+                os.path.sep.join(self.path_components)
+                if self.path_components
+                else f'{self.archive_name}',
+            )
+        )
+
+        if success:
+            self.app.notify(f'🎉 {message}', severity='information', timeout=6)
+            # Clear multi-selections
+            for item_id in list(self.selected_item_ids):
+                with contextlib.suppress(Exception):
+                    option = self.get_option(item_id)
+                    clean_prompt = str(option.prompt).replace('[green]✓[/green] ', '')
+                    self.replace_option_prompt(item_id, clean_prompt)
+            self.selected_item_ids.clear()
+        else:
+            self.app.notify(f'❌ {message}', severity='error', timeout=10)

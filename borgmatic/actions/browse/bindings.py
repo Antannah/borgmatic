@@ -20,3 +20,13 @@ OPTION_LIST_BINDINGS = (
     ),
     textual.binding.Binding(key='right,l', action='select', description='select', show=False),
 )
+
+DIRECTORY_LIST_BINDINGS = (
+    *OPTION_LIST_BINDINGS,
+    textual.binding.Binding(
+        key='space', action='toggle_selection', description='toggle select', show=True, priority=True
+    ),
+    textual.binding.Binding(
+        key='r', action='restore', description='restore', show=True, priority=True
+    ),
+)

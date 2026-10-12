@@ -3,6 +3,7 @@ import collections
 import enum
 import json
 import logging
+import os
 
 import binaryornot.helpers
 
@@ -243,3 +244,41 @@ def get_archive_file_content(config, repository, archive_name, file_path):
             )
         except UnicodeDecodeError:
             return None
+
+
+def restore_archive_paths(
+    config,
+    repository,
+    archive_name,
+    paths,
+    destination_path=None,
+    strip_components=None,
+):
+    '''
+    Given a configuration dict, a repository dict, an archive name, a sequence of paths to restore,
+    an optional destination path, and an optional number of path components to strip, extract the
+    specified paths from the archive into the destination directory.
+    '''
+    with borgmatic.logger.Log_prefix(repository.get('label', repository['path'])):
+        logger.info(f'Restoring {len(paths)} paths from archive {archive_name}')
+        local_path = config.get('local_path', 'borg')
+        remote_path = config.get('remote_path')
+        local_borg_version = borgmatic.borg.version.local_borg_version(config, local_path)
+
+        if destination_path:
+            os.makedirs(destination_path, exist_ok=True)
+
+        borgmatic.borg.extract.extract_archive(
+            dry_run=False,
+            repository=repository['path'],
+            archive=archive_name,
+            paths=tuple(paths),
+            config=config,
+            local_borg_version=local_borg_version,
+            global_arguments=argparse.Namespace(),
+            local_path=local_path,
+            remote_path=remote_path,
+            destination_path=destination_path,
+            strip_components=strip_components,
+            extract_to_stdout=False,
+        )
