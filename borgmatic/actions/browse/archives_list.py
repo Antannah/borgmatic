@@ -48,19 +48,45 @@ class Archives_list(textual.widgets.OptionList):
             repository=self.repository,
         )
 
-    def on_archive_loaded(self, archive_name):
+    def on_archive_loaded(self, archive_data):
         '''
         When an archive loads, add it as an option to this archives list. But if we get a
         signal that all path loading is complete, stop and remove our loading indicator.
         '''
-        if archive_name is borgmatic.actions.browse.workers.LOADING_DONE:
+        if archive_data is borgmatic.actions.browse.workers.LOADING_DONE:
             self.loading_timer.stop()
             self.remove_option('loading-indicator')
             return
 
-        label_pieces = (
-            (archive_name, '[dim](latest)[/dim]') if len(self.options) == 1 else (archive_name,)
+        archive_name = (
+            archive_data.get('name') if isinstance(archive_data, dict) else archive_data
         )
+        stats = archive_data.get('stats') if isinstance(archive_data, dict) else None
+
+        label_pieces = [archive_name]
+        if len(self.options) == 1:
+            label_pieces.append('[dim](latest)[/dim]')
+
+        if stats:
+            orig = stats.get('original_size', 0)
+            archive_size = stats.get('deduplicated_size') or stats.get('compressed_size', 0)
+            orig_str = borgmatic.actions.browse.archive.format_bytes(orig)
+            archive_str = borgmatic.actions.browse.archive.format_bytes(archive_size)
+
+            ratio_str = ''
+            if archive_size and archive_size > 0:
+                ratio = orig / archive_size
+                ratio_str = f'{ratio:.2f}x'
+            elif orig > 0:
+                ratio_str = '∞'
+
+            if ratio_str:
+                label_pieces.append(
+                    f'[cyan]({orig_str} -> {archive_str} | {ratio_str})[/cyan]'
+                )
+            else:
+                label_pieces.append(f'[cyan]({orig_str} -> {archive_str})[/cyan]')
+
         highlighted_option = self.highlighted_option
 
         loading_indicator = self.get_option('loading-indicator')

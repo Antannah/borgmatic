@@ -7,11 +7,35 @@ import logging
 import binaryornot.helpers
 
 import borgmatic.borg.extract
+import borgmatic.borg.info
 import borgmatic.borg.list
 import borgmatic.borg.repo_list
 import borgmatic.borg.version
 
 logger = logging.getLogger(__name__)
+
+
+BYTES_PER_KILOBYTE = 1000.0
+
+
+def format_bytes(byte_count):
+    '''
+    Given a byte count as an int or float, return a human-readable representation string (e.g. "12.3 GB").
+    '''
+    if byte_count is None:
+        return '0 B'
+
+    units = ('B', 'kB', 'MB', 'GB', 'TB', 'PB')
+    size = float(byte_count)
+    unit_index = 0
+
+    while size >= BYTES_PER_KILOBYTE and unit_index < len(units) - 1:
+        size /= BYTES_PER_KILOBYTE
+        unit_index += 1
+
+    if unit_index == 0:
+        return f'{int(size)} {units[unit_index]}'
+    return f'{size:.1f} {units[unit_index]}'
 
 
 class Path_type(enum.Enum):
@@ -62,6 +86,40 @@ def get_repository_archives(config, repository):
                 remote_path,
             )
         )
+
+
+def get_repository_archives_info(config, repository):
+    '''
+    Given a configuration dict and a repository dict, return summary info dict with stats for
+    archives in the repository, or empty dict if info is not available.
+    '''
+    with borgmatic.logger.Log_prefix(repository.get('label', repository['path'])):
+        logger.info('Getting archive info')
+        info_arguments = argparse.Namespace(
+            repository=repository['path'],
+            archive='sh:*',
+            prefix=None,
+            json=True,
+        )
+        global_arguments = argparse.Namespace()
+        local_path = config.get('local_path', 'borg')
+        remote_path = config.get('remote_path')
+        local_borg_version = borgmatic.borg.version.local_borg_version(config, local_path)
+
+        try:
+            raw_output = borgmatic.borg.info.display_archives_info(
+                repository['path'],
+                config,
+                local_borg_version,
+                info_arguments,
+                global_arguments,
+                local_path=local_path,
+                remote_path=remote_path,
+            )
+            return json.loads(raw_output) if raw_output else {}
+        except (OSError, RuntimeError, json.JSONDecodeError) as error:
+            logger.warning(f'Could not load archive stats: {error}')
+            return {}
 
 
 def get_archive_paths(config, repository, archive_name):

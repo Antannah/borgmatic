@@ -35,11 +35,27 @@ def add_repository_archives(browse_app, archive_loaded, config, repository):
     loading done signal.
     '''
     archives_data = borgmatic.actions.browse.archive.get_repository_archives(config, repository)
+    archives_info = borgmatic.actions.browse.archive.get_repository_archives_info(
+        config, repository
+    )
+    stats_by_name = {
+        item['name']: item.get('stats')
+        for item in archives_info.get('archives', [])
+        if 'name' in item
+    }
 
     # Reverse the archives, so the common case of accessing the latest archive is easy because it's
     # at the top.
-    for archive in reversed(archives_data['archives']):
-        archive_loaded.publish(archive['archive'])
+    for archive in reversed(archives_data.get('archives', [])):
+        archive_name = archive.get('archive') or archive.get('name')
+        if not archive_name:
+            continue
+        archive_loaded.publish(
+            {
+                'name': archive_name,
+                'stats': archive.get('stats') or stats_by_name.get(archive_name),
+            }
+        )
 
     archive_loaded.publish(LOADING_DONE)
 
