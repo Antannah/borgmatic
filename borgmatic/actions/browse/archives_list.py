@@ -64,11 +64,6 @@ class Archives_list(textual.widgets.OptionList):
             archive_data.get('name') if isinstance(archive_data, dict) else archive_data
         )
         stats = archive_data.get('stats') if isinstance(archive_data, dict) else None
-        repo_dedup = archive_data.get('repo_dedup') if isinstance(archive_data, dict) else None
-
-        if repo_dedup:
-            total_disk = borgmatic.actions.browse.archive.format_bytes(repo_dedup)
-            self.border_title = f'📚 archives ({total_disk} belegt)'
 
         label_pieces = [archive_name]
         if len(self.options) == 1:

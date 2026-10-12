@@ -88,6 +88,50 @@ def get_repository_archives(config, repository):
         )
 
 
+def get_repository_disk_usage(config, repository):
+    '''
+    Given a configuration dict and a repository dict, return the repository's total deduplicated
+    disk usage in bytes, or None if unavailable.
+    '''
+    with borgmatic.logger.Log_prefix(repository.get('label', repository['path'])):
+        logger.info('Getting repository disk usage')
+        local_path = config.get('local_path', 'borg')
+        remote_path = config.get('remote_path')
+        local_borg_version = borgmatic.borg.version.local_borg_version(config, local_path)
+
+        cmd = (
+            (local_path, 'info', '--log-json', '--json')
+            + (
+                borgmatic.borg.flags.make_flags('remote-path', remote_path)
+                if not borgmatic.borg.feature.available(
+                    borgmatic.borg.feature.Feature.REMOTE_PATH_ENVIRONMENT_VARIABLE,
+                    local_borg_version,
+                )
+                else ()
+            )
+            + (
+                borgmatic.borg.flags.make_repository_flags(
+                    repository['path'], local_borg_version
+                )
+            )
+        )
+
+        try:
+            raw_lines = borgmatic.execute.execute_command_and_capture_output(
+                cmd,
+                environment=borgmatic.borg.environment.make_environment(config),
+                working_directory=borgmatic.config.paths.get_working_directory(config),
+                borg_local_path=local_path,
+                borg_exit_codes=config.get('borg_exit_codes'),
+            )
+            raw_output = '\n'.join(raw_lines)
+            data = json.loads(raw_output) if raw_output else {}
+            return data.get('cache', {}).get('stats', {}).get('unique_csize')
+        except (OSError, RuntimeError, json.JSONDecodeError) as error:
+            logger.warning(f'Could not load repository disk usage: {error}')
+            return None
+
+
 def get_repository_archives_info(config, repository):
     '''
     Given a configuration dict and a repository dict, return summary info dict with stats for

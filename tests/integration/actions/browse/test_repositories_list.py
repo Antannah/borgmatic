@@ -10,3 +10,11 @@ def test_repositories_list_populates_options():
     assert repositories_list.options[0].id == 0
     assert repositories_list.options[1].prompt == 'two'
     assert repositories_list.options[1].id == 1
+
+
+def test_repositories_list_on_disk_usage_loaded_updates_prompt():
+    config = {'repositories': [{'path': 'test1.borg', 'label': 'lokal'}]}
+    repositories_list = module.Repositories_list(config=config)
+
+    repositories_list.on_disk_usage_loaded((0, 1000000000))
+    assert '1.0 GB belegt' in repositories_list.options[0].prompt

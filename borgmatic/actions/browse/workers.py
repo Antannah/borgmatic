@@ -12,6 +12,25 @@ logger = logging.getLogger('__name__')
 LOADING_DONE = object()
 
 
+class Repository_disk_usage_loaded(textual.signal.Signal):
+    '''
+    A signal that publishes when the total disk usage of a repository has been loaded.
+    '''
+
+
+@textual.work(thread=True)
+def load_repositories_disk_usage(browse_app, disk_usage_loaded, config):
+    '''
+    Given a Browse_app instance, a Repository_disk_usage_loaded signal, and a config dict,
+    query the total disk usage for each repository in the background and publish the result.
+    '''
+    for index, repository in enumerate(config.get('repositories', [])):
+        disk_usage = borgmatic.actions.browse.archive.get_repository_disk_usage(
+            config, repository
+        )
+        disk_usage_loaded.publish((index, disk_usage))
+
+
 class Archive_loaded(textual.signal.Signal):
     '''
     A signal that publishes when each subsequent archive is loaded from a repository, intended for

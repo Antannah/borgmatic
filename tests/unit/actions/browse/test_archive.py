@@ -33,6 +33,28 @@ def test_get_repository_archives_info_returns_parsed_json():
     assert result == {'archives': [{'name': 'arc1', 'stats': {'original_size': 100}}]}
 
 
+def test_get_repository_disk_usage_returns_unique_csize():
+    config = {'repositories': [{'path': 'test.borg'}]}
+    flexmock(module.borgmatic.logger).should_receive('Log_prefix').and_return(flexmock())
+    flexmock(module.borgmatic.borg.version).should_receive('local_borg_version').and_return('3.0')
+    flexmock(module.borgmatic.execute).should_receive('execute_command_and_capture_output').and_return(
+        ['{"cache": {"stats": {"unique_csize": 12345}}}']
+    )
+
+    assert module.get_repository_disk_usage(config, config['repositories'][0]) == 12345
+
+
+def test_get_repository_disk_usage_with_error_returns_none():
+    config = {'repositories': [{'path': 'test.borg'}]}
+    flexmock(module.borgmatic.logger).should_receive('Log_prefix').and_return(flexmock())
+    flexmock(module.borgmatic.borg.version).should_receive('local_borg_version').and_return('3.0')
+    flexmock(module.borgmatic.execute).should_receive('execute_command_and_capture_output').and_raise(
+        RuntimeError('error')
+    )
+
+    assert module.get_repository_disk_usage(config, config['repositories'][0]) is None
+
+
 def test_get_repository_archives_info_with_error_returns_empty_dict():
     config = {'repositories': [{'path': 'test.borg'}]}
     flexmock(module.borgmatic.logger).should_receive('Log_prefix').and_return(flexmock())
