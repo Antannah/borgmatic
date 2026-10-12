@@ -273,6 +273,27 @@ class Directory_list(textual.widgets.OptionList):
             new_prompt = f'[green]✓[/green] {option.prompt}'
             self.replace_option_prompt(item_id, new_prompt)
 
+    def action_clear_selection(self):
+        '''
+        Clear all selected items globally and in the current directory list.
+        '''
+        global_selected = getattr(get_app_safe(self), 'selected_archive_paths', None)
+        cleared_count = len(global_selected) if global_selected else len(self.selected_item_ids)
+
+        if global_selected is not None:
+            global_selected.clear()
+
+        for option in self.options:
+            if '[green]✓[/green] ' in str(option.prompt):
+                with contextlib.suppress(Exception):
+                    clean_prompt = str(option.prompt).replace('[green]✓[/green] ', '')
+                    self.replace_option_prompt(option.id, clean_prompt)
+
+        self.selected_item_ids.clear()
+        app = get_app_safe(self)
+        if app and cleared_count > 0:
+            app.notify(f'Cleared {cleared_count} selected item(s)', timeout=3)
+
     def action_restore(self):
         '''
         Trigger restore for selected items or the currently highlighted item.

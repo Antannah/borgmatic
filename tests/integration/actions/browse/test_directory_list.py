@@ -334,3 +334,28 @@ def test_directory_list_on_restore_result_notifies_and_clears_selection():
     assert len(directory_list.selected_item_ids) == 0
     assert '[green]✓[/green]' not in directory_list.options[0].prompt
 
+
+def test_directory_list_action_clear_selection_clears_all():
+    flexmock(module.borgmatic.actions.browse.loading).should_receive('add_inline_loading_indicator')
+    app = flexmock(selected_archive_paths={'file1.txt', 'file2.txt'})
+    app.should_receive('notify').with_args('Cleared 2 selected item(s)', timeout=3).once()
+
+    directory_list = module.Directory_list(
+        config=flexmock(),
+        repository=flexmock(),
+        archive_name='archive',
+        path_loaded=flexmock(complete=True, path_hierarchy={}),
+        path_components=(),
+    )
+    flexmock(directory_list).should_receive('app').and_return(app)
+    directory_list.add_option(textual.widgets.option_list.Option('[green]✓[/green] 📄 file1.txt', id='file1.txt'))
+    directory_list.add_option(textual.widgets.option_list.Option('[green]✓[/green] 📄 file2.txt', id='file2.txt'))
+    directory_list.selected_item_ids.update({'file1.txt', 'file2.txt'})
+
+    directory_list.action_clear_selection()
+    assert len(app.selected_archive_paths) == 0
+    assert len(directory_list.selected_item_ids) == 0
+    assert '[green]✓[/green]' not in directory_list.options[0].prompt
+    assert '[green]✓[/green]' not in directory_list.options[1].prompt
+
+

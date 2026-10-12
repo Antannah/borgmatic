@@ -27,6 +27,9 @@ DIRECTORY_LIST_BINDINGS = (
         key='space', action='toggle_selection', description='toggle select', show=True, priority=True
     ),
     textual.binding.Binding(
+        key='u', action='clear_selection', description='unselect all', show=True, priority=True
+    ),
+    textual.binding.Binding(
         key='r', action='restore', description='restore', show=True, priority=True
     ),
 )
