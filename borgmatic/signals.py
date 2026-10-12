@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import signal
@@ -18,7 +19,8 @@ def handle_signal(signal_number, frame):
     if frame.f_back.f_code.co_name == handle_signal.__name__:
         return
 
-    os.killpg(os.getpgrp(), signal_number)
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(os.getpgrp(), signal_number)
 
     if signal_number == signal.SIGTERM:
         logger.critical('Exiting due to TERM signal')

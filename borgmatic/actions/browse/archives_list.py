@@ -1,3 +1,5 @@
+import contextlib
+
 import textual.widgets
 
 import borgmatic.actions.browse.bindings
@@ -90,13 +92,21 @@ class Archives_list(textual.widgets.OptionList):
                     f'[yellow]({orig_str} -> {comp_str})[/yellow]'
                 )
 
+        is_update = bool(isinstance(archive_data, dict) and archive_data.get('update'))
+        label = ' '.join(label_pieces)
+
+        if is_update:
+            with contextlib.suppress(Exception):
+                self.replace_option_prompt(archive_name, label)
+            return
+
         highlighted_option = self.highlighted_option
 
         loading_indicator = self.get_option('loading-indicator')
         self.remove_option('loading-indicator')
         self.add_options(
             (
-                textual.widgets.option_list.Option(' '.join(label_pieces), id=archive_name),
+                textual.widgets.option_list.Option(label, id=archive_name),
                 loading_indicator,
             ),
         )
