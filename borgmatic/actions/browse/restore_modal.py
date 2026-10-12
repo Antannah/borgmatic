@@ -208,12 +208,14 @@ class Restore_modal(textual.screen.ModalScreen):
         is_original = event.pressed.id == 'radio-original'
         with contextlib.suppress(Exception):
             input_widget = self.query_one('#destination-input', textual.widgets.Input)
-            if is_original:
-                input_widget.disabled = True
-            else:
-                input_widget.disabled = False
+            status_widget = self.query_one('#target-status', textual.widgets.Label)
+
+            input_widget.display = not is_original
+            status_widget.display = not is_original
+
+            if not is_original:
                 input_widget.focus()
-            self.validate_destination()
+                self.validate_destination()
 
     def on_button_pressed(self, event):
         '''
