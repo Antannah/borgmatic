@@ -44,6 +44,8 @@ def add_repository_archives(browse_app, archive_loaded, config, repository):
         if 'name' in item
     }
 
+    repo_dedup = archives_info.get('cache', {}).get('stats', {}).get('unique_csize')
+
     # Reverse the archives, so the common case of accessing the latest archive is easy because it's
     # at the top.
     for archive in reversed(archives_data.get('archives', [])):
@@ -54,6 +56,7 @@ def add_repository_archives(browse_app, archive_loaded, config, repository):
             {
                 'name': archive_name,
                 'stats': archive.get('stats') or stats_by_name.get(archive_name),
+                'repo_dedup': repo_dedup,
             }
         )
 

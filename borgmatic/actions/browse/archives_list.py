@@ -62,6 +62,11 @@ class Archives_list(textual.widgets.OptionList):
             archive_data.get('name') if isinstance(archive_data, dict) else archive_data
         )
         stats = archive_data.get('stats') if isinstance(archive_data, dict) else None
+        repo_dedup = archive_data.get('repo_dedup') if isinstance(archive_data, dict) else None
+
+        if repo_dedup:
+            total_disk = borgmatic.actions.browse.archive.format_bytes(repo_dedup)
+            self.border_title = f'📚 archives ({total_disk} belegt)'
 
         label_pieces = [archive_name]
         if len(self.options) == 1:
@@ -70,21 +75,19 @@ class Archives_list(textual.widgets.OptionList):
         if stats:
             orig = stats.get('original_size', 0)
             comp = stats.get('compressed_size', 0)
-            dedup = stats.get('deduplicated_size', 0)
 
             orig_str = borgmatic.actions.browse.archive.format_bytes(orig)
             comp_str = borgmatic.actions.browse.archive.format_bytes(comp)
-            dedup_str = borgmatic.actions.browse.archive.format_bytes(dedup)
 
             comp_ratio_str = f'{orig / comp:.2f}x' if comp and comp > 0 else ''
 
             if comp_ratio_str:
                 label_pieces.append(
-                    f'[yellow]({orig_str} -> {comp_str} [{comp_ratio_str}] | +{dedup_str})[/yellow]'
+                    f'[yellow]({orig_str} -> {comp_str} [{comp_ratio_str}])[/yellow]'
                 )
             else:
                 label_pieces.append(
-                    f'[yellow]({orig_str} -> {comp_str} | +{dedup_str})[/yellow]'
+                    f'[yellow]({orig_str} -> {comp_str})[/yellow]'
                 )
 
         highlighted_option = self.highlighted_option

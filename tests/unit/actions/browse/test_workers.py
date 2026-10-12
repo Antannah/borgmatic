@@ -15,9 +15,15 @@ def test_add_repository_archives_publishes_for_each_archive():
     )
     archive_loaded = flexmock()
     archive_loaded.should_receive('publish').with_args(
-        {'name': 'bar', 'stats': {'original_size': 200, 'deduplicated_size': 100}}
+        {
+            'name': 'bar',
+            'stats': {'original_size': 200, 'deduplicated_size': 100},
+            'repo_dedup': None,
+        }
     ).once()  # Reversed order.
-    archive_loaded.should_receive('publish').with_args({'name': 'foo', 'stats': None}).once()
+    archive_loaded.should_receive('publish').with_args(
+        {'name': 'foo', 'stats': None, 'repo_dedup': None}
+    ).once()
     archive_loaded.should_receive('publish').with_args(module.LOADING_DONE).once()
 
     module.add_repository_archives.__wrapped__(
