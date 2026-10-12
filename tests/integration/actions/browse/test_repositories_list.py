@@ -6,9 +6,9 @@ def test_repositories_list_populates_options():
 
     repositories_list = module.Repositories_list(config=config)
     assert len(repositories_list.options) == 2
-    assert 'test1.borg [dim](⏳ calculating...)[/dim]' in repositories_list.options[0].prompt
+    assert 'test1.borg [dim]⏳ calculating...[/dim]' in repositories_list.options[0].prompt
     assert repositories_list.options[0].id == 0
-    assert 'two [dim](⏳ calculating...)[/dim]' in repositories_list.options[1].prompt
+    assert 'two [dim]⏳ calculating...[/dim]' in repositories_list.options[1].prompt
     assert repositories_list.options[1].id == 1
 
 
@@ -17,7 +17,7 @@ def test_repositories_list_update_calculating_animation_cycles_dots():
     repositories_list = module.Repositories_list(config=config)
 
     repositories_list.update_calculating_animation()
-    assert 'lokal [dim](⏳ calculating..)[/dim]' in repositories_list.options[0].prompt
+    assert 'lokal [dim]⏳ calculating..[/dim]' in repositories_list.options[0].prompt
 
 
 def test_repositories_list_on_disk_usage_loaded_updates_prompt():

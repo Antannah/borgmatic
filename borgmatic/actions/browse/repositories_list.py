@@ -29,7 +29,7 @@ class Repositories_list(textual.widgets.OptionList):
         super().__init__(
             *(
                 textual.widgets.option_list.Option(
-                    f'{label} [dim](⏳ calculating...)[/dim]', id=index
+                    f'{label} [dim]⏳ calculating...[/dim]', id=index
                 )
                 for index, repository in enumerate(self.repositories)
                 for label in (repository.get('label', repository.get('path')),)
@@ -73,7 +73,7 @@ class Repositories_list(textual.widgets.OptionList):
         for index in list(self.pending_indices):
             repository = self.repositories[index]
             base_label = repository.get('label', repository.get('path'))
-            new_prompt = f'{base_label} [dim](⏳ calculating{dots})[/dim]'
+            new_prompt = f'{base_label} [dim]⏳ calculating{dots}[/dim]'
             with contextlib.suppress(Exception):
                 self.replace_option_prompt_at_index(index, new_prompt)
 
