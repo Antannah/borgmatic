@@ -10,6 +10,16 @@ import borgmatic.actions.browse.restore_modal
 import borgmatic.actions.browse.workers
 
 
+def get_app_safe(widget):
+    '''
+    Safely get the widget's App instance without raising NoActiveAppError when unattached.
+    '''
+    try:
+        return widget.app
+    except (LookupError, AttributeError, RuntimeError):
+        return None
+
+
 def get_relative_archive_path_components(archive_path, current_directory_path_components):
     '''
     Given an Archive_path instance and a tuple of path components for the currently browsed
@@ -81,7 +91,9 @@ def add_archive_paths(
                     archive_path,
                     relative_path_components,
                     selected=(
-                        relative_path_components[0]
+                        os.path.sep.join((*directory_list.path_components, relative_path_components[0]))
+                        in getattr(get_app_safe(directory_list), 'selected_archive_paths', ())
+                        or relative_path_components[0]
                         in getattr(directory_list, 'selected_item_ids', ())
                     ),
                 )
@@ -236,13 +248,27 @@ class Directory_list(textual.widgets.OptionList):
             return
 
         item_id = option.id
-        if item_id in self.selected_item_ids:
-            self.selected_item_ids.remove(item_id)
+        full_path = (
+            os.path.sep.join((*self.path_components, item_id))
+            if self.path_components
+            else item_id
+        )
+
+        global_selected = getattr(get_app_safe(self), 'selected_archive_paths', None)
+
+        if item_id in self.selected_item_ids or (
+            global_selected is not None and full_path in global_selected
+        ):
+            self.selected_item_ids.discard(item_id)
+            if global_selected is not None:
+                global_selected.discard(full_path)
             # Remove [green]✓[/green] prefix
             clean_prompt = str(option.prompt).replace('[green]✓[/green] ', '')
             self.replace_option_prompt(item_id, clean_prompt)
         else:
             self.selected_item_ids.add(item_id)
+            if global_selected is not None:
+                global_selected.add(full_path)
             # Prepend [green]✓[/green] prefix
             new_prompt = f'[green]✓[/green] {option.prompt}'
             self.replace_option_prompt(item_id, new_prompt)
@@ -251,30 +277,36 @@ class Directory_list(textual.widgets.OptionList):
         '''
         Trigger restore for selected items or the currently highlighted item.
         '''
-        if getattr(self.app, 'is_restoring', False):
-            self.app.notify(
+        app = get_app_safe(self)
+        if app and getattr(app, 'is_restoring', False):
+            app.notify(
                 'A restore is already in progress. Please wait...',
                 severity='warning',
                 timeout=4,
             )
             return
 
-        items_to_restore = list(self.selected_item_ids)
-        if not items_to_restore:
+        global_selected = getattr(app, 'selected_archive_paths', None)
+        if global_selected:
+            full_archive_paths = sorted(global_selected)
+        elif self.selected_item_ids:
+            full_archive_paths = [
+                os.path.sep.join((*self.path_components, item_id)) if self.path_components else item_id
+                for item_id in sorted(self.selected_item_ids)
+            ]
+        else:
             highlighted = self.highlighted_option
             if not highlighted or highlighted.id in {'..', 'loading-indicator'}:
                 self.app.notify('Please select an item to restore.', severity='warning')
                 return
-            items_to_restore = [highlighted.id]
+            full_archive_paths = [
+                os.path.sep.join((*self.path_components, highlighted.id))
+                if self.path_components
+                else highlighted.id
+            ]
 
-        full_archive_paths = [
-            os.path.sep.join((*self.path_components, item_id))
-            for item_id in items_to_restore
-        ]
-
-        # Determine default destination from first source directory in config
-        source_dirs = self.config.get('source_directories', [])
-        default_dest = source_dirs[0] if source_dirs else '/source/opt'
+        # Use /workspace/restore as default destination if in workspace, otherwise ./restore
+        default_dest = '/workspace/restore' if os.path.exists('/workspace') else './restore'
 
         def on_modal_dismiss(destination_path):
             if destination_path is None:
@@ -338,6 +370,9 @@ class Directory_list(textual.widgets.OptionList):
         if success:
             self.app.notify(f'🎉 {message}', severity='information', timeout=6)
             # Clear multi-selections
+            global_selected = getattr(getattr(self, 'app', None), 'selected_archive_paths', None)
+            if global_selected is not None:
+                global_selected.clear()
             for item_id in list(self.selected_item_ids):
                 with contextlib.suppress(Exception):
                     option = self.get_option(item_id)

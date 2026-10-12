@@ -1,9 +1,9 @@
+import os
+
 import textual.app
 import textual.containers
 import textual.screen
 import textual.widgets
-
-MAX_SUMMARY_ITEMS = 3
 
 
 class Restore_modal(textual.screen.ModalScreen):
@@ -17,8 +17,8 @@ class Restore_modal(textual.screen.ModalScreen):
     }
 
     #restore-dialog {
-        width: 65;
-        height: auto;
+        width: 76;
+        max-height: 85%;
         border: thick $primary;
         background: $surface;
         padding: 1 2;
@@ -29,9 +29,13 @@ class Restore_modal(textual.screen.ModalScreen):
         margin-bottom: 1;
     }
 
-    #restore-paths-summary {
+    #paths-scroll-container {
+        height: auto;
+        max-height: 9;
+        border: solid $secondary;
         margin-bottom: 1;
-        color: $text-muted;
+        padding: 0 1;
+        overflow-y: scroll;
     }
 
     #destination-input {
@@ -51,7 +55,7 @@ class Restore_modal(textual.screen.ModalScreen):
     }
     '''
 
-    def __init__(self, paths, default_destination='/source/opt'):
+    def __init__(self, paths, default_destination='/workspace/restore'):
         '''
         Given a sequence of archive paths to restore and a default destination path, initialize the
         modal dialog.
@@ -62,29 +66,28 @@ class Restore_modal(textual.screen.ModalScreen):
 
     def compose(self):
         '''
-        Compose the modal dialog with destination choices and confirmation buttons.
+        Compose the modal dialog with scrollable list of paths and destination choices.
         '''
         with textual.containers.Vertical(id='restore-dialog'):
             yield textual.widgets.Label('📦 Restore Files / Directories', id='restore-title')
-            count = len(self.paths)
-            summary_text = (
-                f'Restore {count} item(s):\n'
-                + '\n'.join(f' • {path}' for path in self.paths[:MAX_SUMMARY_ITEMS])
-            )
-            if count > MAX_SUMMARY_ITEMS:
-                summary_text += f'\n ... and {count - MAX_SUMMARY_ITEMS} more'
-            yield textual.widgets.Label(summary_text, id='restore-paths-summary')
+            yield textual.widgets.Label(f'Selected items to restore ({len(self.paths)}):')
+
+            with textual.containers.VerticalScroll(id='paths-scroll-container'):
+                for path in self.paths:
+                    yield textual.widgets.Label(f' • {path}')
 
             yield textual.widgets.Label('Restore destination:')
             with textual.widgets.RadioSet(id='target-mode'):
                 yield textual.widgets.RadioButton(
-                    f'Original path ({self.default_destination})', value=True, id='radio-original'
+                    'Original path structure (Root /)', value=False, id='radio-original'
                 )
-                yield textual.widgets.RadioButton('Custom directory', id='radio-custom')
+                yield textual.widgets.RadioButton(
+                    f'Destination directory ({self.default_destination})', value=True, id='radio-custom'
+                )
 
             yield textual.widgets.Input(
                 value=self.default_destination,
-                placeholder='Enter destination path',
+                placeholder='Enter destination directory',
                 id='destination-input',
             )
 
@@ -94,22 +97,16 @@ class Restore_modal(textual.screen.ModalScreen):
 
     def on_radio_set_changed(self, event):
         '''
-        Toggle default destination vs editable input when radio selection changes.
+        Toggle root destination vs editable input when radio selection changes.
         '''
         input_widget = self.query_one('#destination-input', textual.widgets.Input)
         if event.pressed.id == 'radio-original':
-            input_widget.value = self.default_destination
+            input_widget.value = os.path.sep
             input_widget.disabled = True
         else:
+            input_widget.value = self.default_destination
             input_widget.disabled = False
             input_widget.focus()
-
-    def on_mount(self):
-        '''
-        Initially disable the custom input since original path is selected by default.
-        '''
-        input_widget = self.query_one('#destination-input', textual.widgets.Input)
-        input_widget.disabled = True
 
     def on_button_pressed(self, event):
         '''

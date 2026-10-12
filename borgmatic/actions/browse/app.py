@@ -41,6 +41,7 @@ class Browse_app(textual.app.App):
     def __init__(self, configs):
         self.configs = configs
         self.is_restoring = False
+        self.selected_archive_paths = set()
 
         super().__init__()
 

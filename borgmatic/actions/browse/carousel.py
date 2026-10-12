@@ -41,7 +41,9 @@ def make_next_panel(focused_panel, option_id):
     if isinstance(focused_panel, borgmatic.actions.browse.directory_list.Directory_list):
         option = focused_panel.get_option(option_id)
 
-        if option.prompt.startswith(
+        clean_prompt = str(option.prompt).replace('[green]✓[/green] ', '')
+
+        if clean_prompt.startswith(
             borgmatic.actions.browse.icons.PATH_TYPE_ICONS[
                 borgmatic.actions.browse.archive.Path_type.DIRECTORY.value
             ]
@@ -54,7 +56,7 @@ def make_next_panel(focused_panel, option_id):
                 path_components=(*focused_panel.path_components, option_id),
             )
 
-        if option.prompt.startswith(
+        if clean_prompt.startswith(
             borgmatic.actions.browse.icons.PATH_TYPE_ICONS[
                 borgmatic.actions.browse.archive.Path_type.FILE.value
             ]
