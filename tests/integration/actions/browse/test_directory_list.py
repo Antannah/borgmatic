@@ -338,7 +338,7 @@ def test_directory_list_on_restore_result_notifies_and_clears_selection():
 def test_directory_list_action_clear_selection_clears_all():
     flexmock(module.borgmatic.actions.browse.loading).should_receive('add_inline_loading_indicator')
     app = flexmock(selected_archive_paths={'file1.txt', 'file2.txt'})
-    app.should_receive('notify').with_args('Cleared 2 selected item(s)', timeout=3).once()
+    app.should_receive('notify').with_args('2 item(s) unselected', timeout=3).once()
 
     directory_list = module.Directory_list(
         config=flexmock(),

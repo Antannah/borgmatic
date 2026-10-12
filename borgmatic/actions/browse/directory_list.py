@@ -153,7 +153,7 @@ class Directory_list(textual.widgets.OptionList):
 
         super().__init__(classes='panel')
 
-        self.border_title = ' '.join(
+        self.base_border_title = ' '.join(
             (
                 '📁',
                 os.path.sep.join(self.path_components)
@@ -161,6 +161,7 @@ class Directory_list(textual.widgets.OptionList):
                 else f'{archive_name}',
             )
         )
+        self.update_border_title()
 
         if self.path_components:
             self.add_option(
@@ -239,6 +240,17 @@ class Directory_list(textual.widgets.OptionList):
         if self.highlighted not in {None, 0}:
             self.highlighted_option_changed = True
 
+    def update_border_title(self):
+        '''
+        Update border title including count of currently selected items if any.
+        '''
+        global_selected = getattr(get_app_safe(self), 'selected_archive_paths', None)
+        count = len(global_selected) if global_selected is not None else len(self.selected_item_ids)
+        if count > 0:
+            self.border_title = f'{self.base_border_title} [green]({count} selected)[/green]'
+        else:
+            self.border_title = self.base_border_title
+
     def action_toggle_selection(self):
         '''
         Toggle multi-selection on the currently highlighted option (except '..' or loading indicator).
@@ -273,6 +285,8 @@ class Directory_list(textual.widgets.OptionList):
             new_prompt = f'[green]✓[/green] {option.prompt}'
             self.replace_option_prompt(item_id, new_prompt)
 
+        self.update_border_title()
+
     def action_clear_selection(self):
         '''
         Clear all selected items globally and in the current directory list.
@@ -290,9 +304,10 @@ class Directory_list(textual.widgets.OptionList):
                     self.replace_option_prompt(option.id, clean_prompt)
 
         self.selected_item_ids.clear()
+        self.update_border_title()
         app = get_app_safe(self)
         if app and cleared_count > 0:
-            app.notify(f'Cleared {cleared_count} selected item(s)', timeout=3)
+            app.notify(f'{cleared_count} item(s) unselected', timeout=3)
 
     def action_restore(self):
         '''
@@ -378,16 +393,6 @@ class Directory_list(textual.widgets.OptionList):
             self.restore_anim_timer.stop()
             self.restore_anim_timer = None
 
-        # Reset border title
-        self.border_title = ' '.join(
-            (
-                '📁',
-                os.path.sep.join(self.path_components)
-                if self.path_components
-                else f'{self.archive_name}',
-            )
-        )
-
         if success:
             self.app.notify(f'🎉 {message}', severity='information', timeout=6)
             # Clear multi-selections
@@ -402,3 +407,5 @@ class Directory_list(textual.widgets.OptionList):
             self.selected_item_ids.clear()
         else:
             self.app.notify(f'❌ {message}', severity='error', timeout=10)
+
+        self.update_border_title()
