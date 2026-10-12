@@ -69,23 +69,21 @@ class Archives_list(textual.widgets.OptionList):
 
         if stats:
             orig = stats.get('original_size', 0)
-            archive_size = stats.get('deduplicated_size') or stats.get('compressed_size', 0)
+            comp = stats.get('compressed_size', 0)
+            dedup = stats.get('deduplicated_size', 0)
+
             orig_str = borgmatic.actions.browse.archive.format_bytes(orig)
-            archive_str = borgmatic.actions.browse.archive.format_bytes(archive_size)
+            comp_str = borgmatic.actions.browse.archive.format_bytes(comp)
+            dedup_str = borgmatic.actions.browse.archive.format_bytes(dedup)
 
-            ratio_str = ''
-            if archive_size and archive_size > 0:
-                ratio = orig / archive_size
-                ratio_str = f'{ratio:.2f}x'
-            elif orig > 0:
-                ratio_str = '∞'
+            comp_ratio_str = f'{orig / comp:.2f}x' if comp and comp > 0 else ''
 
-            if ratio_str:
+            if comp_ratio_str:
                 label_pieces.append(
-                    f'[cyan]({orig_str} -> {archive_str} | {ratio_str})[/cyan]'
+                    f'[#ffaa00]({orig_str} -> {comp_str} [{comp_ratio_str}] | +{dedup_str} neu)[/#ffaa00]'
                 )
             else:
-                label_pieces.append(f'[cyan]({orig_str} -> {archive_str})[/cyan]')
+                label_pieces.append(f'[#ffaa00]({orig_str} -> {comp_str})[/#ffaa00]')
 
         highlighted_option = self.highlighted_option
 
