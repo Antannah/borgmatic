@@ -8,29 +8,9 @@ def test_add_repository_archives_publishes_for_each_archive():
     flexmock(module.borgmatic.actions.browse.archive).should_receive(
         'get_repository_archives'
     ).and_return({'archives': [{'archive': 'foo'}, {'archive': 'bar'}]})
-    flexmock(module.borgmatic.actions.browse.archive).should_receive(
-        'get_repository_archives_info'
-    ).and_return(
-        {'archives': [{'name': 'bar', 'stats': {'original_size': 200, 'deduplicated_size': 100}}]}
-    )
     archive_loaded = flexmock()
-    archive_loaded.should_receive('publish').with_args(
-        {'name': 'bar', 'stats': None, 'repo_dedup': None}
-    ).once()  # Fast initial listing
-    archive_loaded.should_receive('publish').with_args(
-        {'name': 'foo', 'stats': None, 'repo_dedup': None}
-    ).once()
-    archive_loaded.should_receive('publish').with_args(
-        {
-            'name': 'bar',
-            'stats': {'original_size': 200, 'deduplicated_size': 100},
-            'repo_dedup': None,
-            'update': True,
-        }
-    ).once()  # Asynchronous enriched update
-    archive_loaded.should_receive('publish').with_args(
-        {'name': 'foo', 'stats': None, 'repo_dedup': None, 'update': True}
-    ).once()
+    archive_loaded.should_receive('publish').with_args('bar').once()
+    archive_loaded.should_receive('publish').with_args('foo').once()
     archive_loaded.should_receive('publish').with_args(module.LOADING_DONE).once()
 
     module.add_repository_archives.__wrapped__(

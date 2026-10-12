@@ -54,43 +54,11 @@ def add_repository_archives(browse_app, archive_loaded, config, repository):
     loading done signal.
     '''
     archives_data = borgmatic.actions.browse.archive.get_repository_archives(config, repository)
-    # First, quickly list and display the archive names (takes ~1-2s even over SFTP).
-    reversed_archives = tuple(reversed(archives_data.get('archives', [])))
-    for archive in reversed_archives:
+    for archive in reversed(archives_data.get('archives', [])):
         archive_name = archive.get('archive') or archive.get('name')
         if not archive_name:
             continue
-        archive_loaded.publish(
-            {
-                'name': archive_name,
-                'stats': archive.get('stats'),
-                'repo_dedup': None,
-            }
-        )
-
-    # Next, load archive info and stats in background and update the options
-    archives_info = borgmatic.actions.browse.archive.get_repository_archives_info(
-        config, repository
-    )
-    stats_by_name = {
-        item['name']: item.get('stats')
-        for item in archives_info.get('archives', [])
-        if 'name' in item
-    }
-    repo_dedup = archives_info.get('cache', {}).get('stats', {}).get('unique_csize')
-
-    for archive in reversed_archives:
-        archive_name = archive.get('archive') or archive.get('name')
-        if not archive_name:
-            continue
-        archive_loaded.publish(
-            {
-                'name': archive_name,
-                'stats': archive.get('stats') or stats_by_name.get(archive_name),
-                'repo_dedup': repo_dedup,
-                'update': True,
-            }
-        )
+        archive_loaded.publish(archive_name)
 
     archive_loaded.publish(LOADING_DONE)
 

@@ -1,5 +1,3 @@
-import contextlib
-
 import textual.widgets
 
 import borgmatic.actions.browse.bindings
@@ -63,38 +61,12 @@ class Archives_list(textual.widgets.OptionList):
         archive_name = (
             archive_data.get('name') if isinstance(archive_data, dict) else archive_data
         )
-        stats = archive_data.get('stats') if isinstance(archive_data, dict) else None
 
         label_pieces = [archive_name]
         if len(self.options) == 1:
             label_pieces.append('[dim](latest)[/dim]')
 
-        if stats:
-            orig = stats.get('original_size', 0)
-            comp = stats.get('compressed_size', 0)
-
-            orig_str = borgmatic.actions.browse.archive.format_bytes(orig)
-            comp_str = borgmatic.actions.browse.archive.format_bytes(comp)
-
-            comp_ratio_str = f'{orig / comp:.2f}x' if comp and comp > 0 else ''
-
-            if comp_ratio_str:
-                label_pieces.append(
-                    f'[yellow]({orig_str} -> {comp_str} [{comp_ratio_str}])[/yellow]'
-                )
-            else:
-                label_pieces.append(
-                    f'[yellow]({orig_str} -> {comp_str})[/yellow]'
-                )
-
-        is_update = bool(isinstance(archive_data, dict) and archive_data.get('update'))
         label = ' '.join(label_pieces)
-
-        if is_update:
-            with contextlib.suppress(Exception):
-                self.replace_option_prompt(archive_name, label)
-            return
-
         highlighted_option = self.highlighted_option
 
         loading_indicator = self.get_option('loading-indicator')
