@@ -1,12 +1,13 @@
 import logging
 import os
+import subprocess
 
 import textual
 import textual.signal
 
 import borgmatic.actions.browse.archive
 
-logger = logging.getLogger('__name__')
+logger = logging.getLogger(__name__)
 
 
 LOADING_DONE = object()
@@ -168,10 +169,13 @@ def load_archive_paths(browse_app, path_loaded, config, repository, archive_name
     This function runs in a separate thread from the main UI. When loading is complete, publish a
     loading done signal.
     '''
-    for archive_path in borgmatic.actions.browse.archive.get_archive_paths(
-        config, repository, archive_name
-    ):
-        path_loaded.publish(archive_path)
+    try:
+        for archive_path in borgmatic.actions.browse.archive.get_archive_paths(
+            config, repository, archive_name
+        ):
+            path_loaded.publish(archive_path)
+    except (subprocess.CalledProcessError, OSError, RuntimeError) as error:
+        logger.warning(f'Could not load archive paths: {error}')
 
     path_loaded.publish(LOADING_DONE)
 
@@ -244,5 +248,5 @@ def restore_paths(
         )
         dest = destination_path or 'original location'
         restore_result.publish((True, f'Successfully restored {len(paths)} item(s) to {dest}'))
-    except (OSError, RuntimeError, ValueError) as error:
+    except (subprocess.CalledProcessError, OSError, RuntimeError, ValueError) as error:
         restore_result.publish((False, f'Restore failed: {error}'))

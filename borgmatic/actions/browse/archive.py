@@ -4,6 +4,7 @@ import enum
 import json
 import logging
 import os
+import subprocess
 
 import binaryornot.helpers
 
@@ -76,17 +77,21 @@ def get_repository_archives(config, repository):
         remote_path = config.get('remote_path')
         local_borg_version = borgmatic.borg.version.local_borg_version(config, local_path)
 
-        return json.loads(
-            borgmatic.borg.repo_list.list_repository(
-                repository['path'],
-                config,
-                local_borg_version,
-                repo_list_arguments,
-                global_arguments,
-                local_path,
-                remote_path,
+        try:
+            return json.loads(
+                borgmatic.borg.repo_list.list_repository(
+                    repository['path'],
+                    config,
+                    local_borg_version,
+                    repo_list_arguments,
+                    global_arguments,
+                    local_path,
+                    remote_path,
+                )
             )
-        )
+        except (subprocess.CalledProcessError, OSError, RuntimeError, json.JSONDecodeError) as error:
+            logger.warning(f'Could not load repository archives: {error}')
+            return {}
 
 
 def get_repository_disk_usage(config, repository):
@@ -128,7 +133,7 @@ def get_repository_disk_usage(config, repository):
             raw_output = '\n'.join(raw_lines)
             data = json.loads(raw_output) if raw_output else {}
             return data.get('cache', {}).get('stats', {}).get('unique_csize')
-        except (OSError, RuntimeError, json.JSONDecodeError) as error:
+        except (subprocess.CalledProcessError, OSError, RuntimeError, json.JSONDecodeError) as error:
             logger.warning(f'Could not load repository disk usage: {error}')
             return None
 
@@ -162,7 +167,7 @@ def get_repository_archives_info(config, repository):
                 remote_path=remote_path,
             )
             return json.loads(raw_output) if raw_output else {}
-        except (OSError, RuntimeError, json.JSONDecodeError) as error:
+        except (subprocess.CalledProcessError, OSError, RuntimeError, json.JSONDecodeError) as error:
             logger.warning(f'Could not load archive stats: {error}')
             return {}
 
