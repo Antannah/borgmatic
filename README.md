@@ -10,6 +10,24 @@ databases too. Monitor it all with integrated third-party services.
 
 The canonical home of borgmatic is at <a href="https://torsion.org/borgmatic">https://torsion.org/borgmatic/</a>
 
+---
+
+> [!NOTE]
+> ### 🚀 Fork Enhancements: Interactive `borgmatic browse` (TUI)
+> This repository is a fork of [borgmatic-collective/borgmatic](https://github.com/borgmatic-collective/borgmatic) maintained by [@Antannah](https://github.com/Antannah).
+> It extends the Textual-based interactive archive viewer (`borgmatic browse`) with powerful new features:
+>
+> * **📊 Archive & Repository Disk Usage:** Displays total size and deduplication statistics in the carousel and repository lists without freezing the UI.
+> * **✨ Multi-Select & Interactive Restore (`[Space]`, `[r]`, `[u]`):**
+>   * `[Space]`: Mark/unmark multiple files and directories across folders (with live counter in header).
+>   * `[r]`: Open restore modal with support for original root path (`/`) or custom destination directory.
+>   * `[u]`: Clear all selections instantly.
+> * **🗑️ Archive Management (`[d]`):** Delete older archives directly from the TUI with safety confirmation dialog.
+>
+> Development and documentation are tracked in [BROWSE_IMPROVEMENTS_PLAN.md](BROWSE_IMPROVEMENTS_PLAN.md).
+
+---
+
 Here's an example configuration file:
 
 ```yaml
